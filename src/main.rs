@@ -31,7 +31,12 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+extern crate colored;
+use colored::*;
+
 fn main() {
+    println!("{} {} !", "renderer-vulkano".green().bold(), "start".blue().bold());
+
     // The first step of any Vulkan program is to create an instance.
     //
     // When we create an instance, we have to pass a list of extensions that we want to enable.
