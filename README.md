@@ -2,6 +2,11 @@
 
 Renderer with Rust Language and Vulkano middleware
 
+## Set up
+
+1. [安装 Rust](https://course.rs/first-try/installation.html)
+2. Terminal 在工程根目录运行 `cargo run`
+
 ## Reference
 
 ### Rust
@@ -20,6 +25,6 @@ Renderer with Rust Language and Vulkano middleware
 
 - [Vulkano](https://github.com/vulkano-rs/vulkano) 是官方推荐的 high-level rust vulkan api，
   - 使用 [Ash](https://github.com/ash-rs/ash) 访问 Vulkan api，Ash 是接近 Vulkan C++ Api 的 low-level rust api
-  - 使用 [shaderc](https://github.com/google/shaderc-rs) 编译 shader
+  - 使用 [shaderc-rs](https://github.com/google/shaderc-rs) 编译 shader
   - 使用 winit 创建窗口
 - [Vulkano-tutorial](https://github.com/bwasty/vulkan-tutorial-rs#swap-chain) Vulkano 模仿 Vulkan C++ 的教程，但是很久没更新了，推荐直接看 Vulkano 源码
