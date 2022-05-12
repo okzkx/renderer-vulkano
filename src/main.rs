@@ -1,7 +1,10 @@
 mod cube;
+mod shader;
+
+use cube::*;
+use shader::*;
 
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
-use cube::{Normal, Vertex, INDICES, NORMALS, VERTICES};
 use std::{sync::Arc, time::Instant};
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
@@ -120,14 +123,12 @@ fn main() {
             .unwrap()
     };
 
-    let vertex_buffer =
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, VERTICES)
-            .unwrap();
-    let normals_buffer =
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, NORMALS).unwrap();
-    let index_buffer =
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, INDICES).unwrap();
-
+    let vertex_buffer = CpuAccessibleBuffer::from_iter(
+        device.clone(), BufferUsage::all(), false, CUBE.vertices).unwrap();
+    let normals_buffer = CpuAccessibleBuffer::from_iter(
+        device.clone(), BufferUsage::all(), false, CUBE.normals).unwrap();
+    let index_buffer = CpuAccessibleBuffer::from_iter(
+        device.clone(), BufferUsage::all(), false, CUBE.indices).unwrap();
     let uniform_buffer = CpuBufferPool::<vs::ty::Data>::new(device.clone(), BufferUsage::all());
 
     let vs = vs::load(device.clone()).unwrap();
@@ -191,13 +192,8 @@ fn main() {
                         };
 
                     swapchain = new_swapchain;
-                    let (new_pipeline, new_framebuffers) = window_size_dependent_setup(
-                        device.clone(),
-                        &vs,
-                        &fs,
-                        &new_images,
-                        render_pass.clone(),
-                    );
+                    let (new_pipeline, new_framebuffers) =
+                        window_size_dependent_setup(device.clone(), &vs, &fs, &new_images, render_pass.clone());
                     pipeline = new_pipeline;
                     framebuffers = new_framebuffers;
                     recreate_swapchain = false;
@@ -347,11 +343,7 @@ fn window_size_dependent_setup(
     // This allows the driver to optimize things, at the cost of slower window resizes.
     // https://computergraphics.stackexchange.com/questions/5742/vulkan-best-way-of-updating-pipeline-viewport
     let pipeline = GraphicsPipeline::start()
-        .vertex_input_state(
-            BuffersDefinition::new()
-                .vertex::<Vertex>()
-                .vertex::<Normal>(),
-        )
+        .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>().vertex::<Normal>())
         .vertex_shader(vs.entry_point("main").unwrap(), ())
         .input_assembly_state(InputAssemblyState::new())
         .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([
@@ -368,23 +360,4 @@ fn window_size_dependent_setup(
         .unwrap();
 
     (pipeline, framebuffers)
-}
-
-mod vs {
-    vulkano_shaders::shader! {
-        ty: "vertex",
-        path: "src/vert.glsl",
-        types_meta: {
-            use bytemuck::{Pod, Zeroable};
-
-            #[derive(Clone, Copy, Zeroable, Pod)]
-        },
-    }
-}
-
-mod fs {
-    vulkano_shaders::shader! {
-        ty: "fragment",
-        path: "src/frag.glsl"
-    }
 }
