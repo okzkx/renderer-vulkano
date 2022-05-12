@@ -1,16 +1,7 @@
-// Copyright (c) 2016 The vulkano developers
-// Licensed under the Apache License, Version 2.0
-// <LICENSE-APACHE or
-// https://www.apache.org/licenses/LICENSE-2.0> or the MIT
-// license <LICENSE-MIT or https://opensource.org/licenses/MIT>,
-// at your option. All files in the project carrying such
-// notice may not be copied, modified, or distributed except
-// according to those terms.
-
-mod teaport;
+mod cube;
 
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
-use teaport::{Normal, Vertex, INDICES, NORMALS, VERTICES};
+use cube::{Normal, Vertex, INDICES, NORMALS, VERTICES};
 use std::{sync::Arc, time::Instant};
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
@@ -47,9 +38,6 @@ use winit::{
 };
 
 fn main() {
-    // The start of this example is exactly the same as `triangle`. You should read the
-    // `triangle` example if you haven't done so yet.
-
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(InstanceCreateInfo {
         enabled_extensions: required_extensions,
@@ -236,7 +224,7 @@ fn main() {
                         Point3::new(0.0, 0.0, 0.0),
                         Vector3::new(0.0, -1.0, 0.0),
                     );
-                    let scale = Matrix4::from_scale(0.01);
+                    let scale = Matrix4::from_scale(1.0);
 
                     let uniform_data = vs::ty::Data {
                         world: Matrix4::from(rotation).into(),
