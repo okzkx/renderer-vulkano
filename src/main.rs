@@ -6,6 +6,7 @@ use shader::*;
 
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use std::{sync::Arc, time::Instant};
+use std::io::Cursor;
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents},
@@ -34,8 +35,10 @@ use vulkano::{
     sync::{self, FlushError, GpuFuture},
 };
 use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorSetLayoutCreateInfo, DescriptorSetLayoutCreationError};
+use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
 use vulkano::pipeline::layout::PipelineLayoutCreateInfo;
 use vulkano::pipeline::PipelineLayout;
+use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 use vulkano_win::VkSurfaceBuild;
 use winit::{
     event::{Event, WindowEvent},
@@ -154,14 +157,50 @@ fn main() {
             color: [color],
             depth_stencil: {depth}
         }
-    )
-        .unwrap();
+    ).unwrap();
+
+    // Prepare Texture
+    let (texture, tex_future) = {
+        let png_bytes = include_bytes!("surface.png").to_vec();
+        let cursor = Cursor::new(png_bytes);
+        let decoder = png::Decoder::new(cursor);
+        let mut reader = decoder.read_info().unwrap();
+        let info = reader.info();
+        let dimensions = ImageDimensions::Dim2d {
+            width: info.width,
+            height: info.height,
+            array_layers: 1,
+        };
+        let mut image_data = Vec::new();
+        image_data.resize((info.width * info.height * 4) as usize, 0);
+        reader.next_frame(&mut image_data).unwrap();
+
+        let (image, future) = ImmutableImage::from_iter(
+            image_data,
+            dimensions,
+            MipmapsCount::One,
+            Format::R8G8B8A8_SRGB,
+            queue.clone(),
+        ).unwrap();
+
+        (ImageView::new_default(image).unwrap(), future)
+    };
+
+    let sampler = Sampler::new(
+        device.clone(),
+        SamplerCreateInfo {
+            mag_filter: Filter::Linear,
+            min_filter: Filter::Linear,
+            address_mode: [SamplerAddressMode::Repeat; 3],
+            ..Default::default()
+        },
+    ).unwrap();
 
     let (mut pipeline, mut framebuffers) =
         window_size_dependent_setup(device.clone(), &vs, &fs, &images, render_pass.clone());
-    let mut recreate_swapchain = false;
 
-    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let mut recreate_swapchain = false;
+    let mut previous_frame_end = Some(tex_future.boxed());
     let rotation_start = Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
@@ -236,9 +275,11 @@ fn main() {
                 let layout = pipeline.layout().set_layouts().get(0).unwrap();
                 let set = PersistentDescriptorSet::new(
                     layout.clone(),
-                    [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
-                )
-                    .unwrap();
+                    [
+                        WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer),
+                        WriteDescriptorSet::image_view_sampler(1, texture.clone(), sampler.clone()),
+                    ],
+                ).unwrap();
 
                 let (image_num, suboptimal, acquire_future) =
                     match acquire_next_image(swapchain.clone(), None) {
@@ -258,13 +299,13 @@ fn main() {
                     device.clone(),
                     queue.family(),
                     CommandBufferUsage::OneTimeSubmit,
-                )
-                    .unwrap();
+                ).unwrap();
+
                 builder
                     .begin_render_pass(
                         framebuffers[image_num].clone(),
                         SubpassContents::Inline,
-                        vec![[0.0, 0.0, 1.0, 1.0].into(), 1f32.into()],
+                        vec![[0.2, 0.2, 0.2, 1.0].into(), 1f32.into()],
                     )
                     .unwrap()
                     .bind_pipeline_graphics(pipeline.clone())
@@ -276,18 +317,14 @@ fn main() {
                     )
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .bind_index_buffer(index_buffer.clone())
-                    .draw_indexed(index_buffer.len() as u32, 1, 0, 0, 0)
-                    .unwrap()
-                    .end_render_pass()
-                    .unwrap();
+                    .draw_indexed(index_buffer.len() as u32, 1, 0, 0, 0).unwrap()
+                    .end_render_pass().unwrap();
                 let command_buffer = builder.build().unwrap();
 
                 let future = previous_frame_end
-                    .take()
-                    .unwrap()
+                    .take().unwrap()
                     .join(acquire_future)
-                    .then_execute(queue.clone(), command_buffer)
-                    .unwrap()
+                    .then_execute(queue.clone(), command_buffer).unwrap()
                     .then_swapchain_present(queue.clone(), swapchain.clone(), image_num)
                     .then_signal_fence_and_flush();
 
@@ -322,8 +359,7 @@ fn window_size_dependent_setup(
 
     let depth_buffer = ImageView::new_default(
         AttachmentImage::transient(device.clone(), dimensions, Format::D16_UNORM).unwrap(),
-    )
-        .unwrap();
+    ).unwrap();
 
     let framebuffers = images
         .iter()
