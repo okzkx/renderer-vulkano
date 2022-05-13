@@ -33,6 +33,9 @@ use vulkano::{
     },
     sync::{self, FlushError, GpuFuture},
 };
+use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorSetLayoutCreateInfo, DescriptorSetLayoutCreationError};
+use vulkano::pipeline::layout::PipelineLayoutCreateInfo;
+use vulkano::pipeline::PipelineLayout;
 use vulkano_win::VkSurfaceBuild;
 use winit::{
     event::{Event, WindowEvent},
@@ -125,8 +128,6 @@ fn main() {
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
         device.clone(), BufferUsage::all(), false, CUBE.vertices).unwrap();
-    let normals_buffer = CpuAccessibleBuffer::from_iter(
-        device.clone(), BufferUsage::all(), false, CUBE.normals).unwrap();
     let index_buffer = CpuAccessibleBuffer::from_iter(
         device.clone(), BufferUsage::all(), false, CUBE.indices).unwrap();
     let uniform_buffer = CpuBufferPool::<vs::ty::Data>::new(device.clone(), BufferUsage::all());
@@ -204,6 +205,7 @@ fn main() {
                     let rotation =
                         elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
                     let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
+                    // let rotation = Matrix3::from_angle_y(Rad(0 as f32));
 
                     // note: this teapot was meant for OpenGL where the origin is at the lower left
                     //       instead the origin is at the upper left in Vulkan, so we reverse the Y axis
@@ -216,7 +218,7 @@ fn main() {
                         100.0,
                     );
                     let view = Matrix4::look_at_rh(
-                        Point3::new(0.3, 0.3, 1.0),
+                        Point3::new(0.0, 0.0, -3.0),
                         Point3::new(0.0, 0.0, 0.0),
                         Vector3::new(0.0, -1.0, 0.0),
                     );
@@ -272,7 +274,7 @@ fn main() {
                         0,
                         set.clone(),
                     )
-                    .bind_vertex_buffers(0, (vertex_buffer.clone(), normals_buffer.clone()))
+                    .bind_vertex_buffers(0, vertex_buffer.clone())
                     .bind_index_buffer(index_buffer.clone())
                     .draw_indexed(index_buffer.len() as u32, 1, 0, 0, 0)
                     .unwrap()
@@ -343,7 +345,7 @@ fn window_size_dependent_setup(
     // This allows the driver to optimize things, at the cost of slower window resizes.
     // https://computergraphics.stackexchange.com/questions/5742/vulkan-best-way-of-updating-pipeline-viewport
     let pipeline = GraphicsPipeline::start()
-        .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>().vertex::<Normal>())
+        .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
         .vertex_shader(vs.entry_point("main").unwrap(), ())
         .input_assembly_state(InputAssemblyState::new())
         .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([
