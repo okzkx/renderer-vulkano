@@ -16,7 +16,8 @@ use vulkano::{
         Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo,
     },
     format::Format,
-    image::{view::ImageView, AttachmentImage, ImageAccess, ImageUsage, SwapchainImage},
+    image::*,
+    image::view::ImageView,
     instance::{Instance, InstanceCreateInfo},
     pipeline::{
         graphics::{
@@ -33,12 +34,8 @@ use vulkano::{
         acquire_next_image, AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError,
     },
     sync::{self, FlushError, GpuFuture},
+    sampler::*,
 };
-use vulkano::descriptor_set::layout::{DescriptorSetLayout, DescriptorSetLayoutCreateInfo, DescriptorSetLayoutCreationError};
-use vulkano::image::{ImageDimensions, ImmutableImage, MipmapsCount};
-use vulkano::pipeline::layout::PipelineLayoutCreateInfo;
-use vulkano::pipeline::PipelineLayout;
-use vulkano::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 use vulkano_win::VkSurfaceBuild;
 use winit::{
     event::{Event, WindowEvent},
@@ -161,7 +158,7 @@ fn main() {
 
     // Prepare Texture
     let (texture, tex_future) = {
-        let png_bytes = include_bytes!("surface.png").to_vec();
+        let png_bytes = include_bytes!("images/surface.png").to_vec();
         let cursor = Cursor::new(png_bytes);
         let decoder = png::Decoder::new(cursor);
         let mut reader = decoder.read_info().unwrap();
